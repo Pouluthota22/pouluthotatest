@@ -22,14 +22,14 @@
  */
 const port = 9000;
 const path = require('path');
-const favicon = require('serve-favicon');
 const bodyParser= require('body-parser');
 
 // Express 4.x server.
 const express = require('express');
 const app = express();
+const fs = require('fs');
+
 // favicon /public.
-app.use(favicon(path.join(__dirname, 'public', 'favicon.ico')));
 
 // Make /public directory accessible by default.
 /** 
@@ -76,64 +76,53 @@ MongoClient.connect('mongodb://thudley:slapswell@ds029595.mlab.com:29595/lame-qu
 // Default GET routes.
 
 // Get index.html from /public folder.
-app.get('/', (req, res) => {
+app.get('/read', (req, res) => {
 
 	//res.send('hello, world');
 	console.log('rendering index.html');
-	/** 
-	 * Grab the quotes database collection from the MongoDB server. It is an object 
-	 * with the data, plus methods for reading and writing to the remote database.
-	 * 
-	 * NOTE: variable 'db' has to be initialized above by MongoClient.connect for this to work.
-	 */
-	var cursor = db.collection('quotes').find().toArray(function(err, result) {
-		//console.log('results:' + results)
-		// send HTML file populated with quotes here
-		res.render('index.ejs', {quotes: result})
+	fs.readFile('data.json', (err, data) => {  
+		if (err) throw err;
+		let student = JSON.parse(data);
+		console.log(student);
+		res.send(student);
+		
 	});
-
-	//var cursor = db.collection('quotes');
-	//console.log(cursor);
-	//NOTE: you can't use express.static() on /public AND use it here!
-	//res.sendFile(__dirname + '/public/index.html'); //NOT ./index.html!!!!!
 });
 
-// POST routes (path is form action="path")
 
-// Post from form action="/quotes"
-// CREATE
 app.post('/quotes', (req, res, next) => {
-	/* 
-	 * req.post has all the fields in an object. In this example...
-	 * req.post = {name: "user's input", quote: "user's quote"};
-	 * test with: console.log(req.body)
-	 */
-	// These lines use the MongoClient to post user input to the MongoDB database.
-	db.collection('quotes').save(req.body, (err, result) => {
-		if(err) {
-			return console.log(err);
-		}
-		console.log('Saved post to MongoDB database');
-			// Send user to index.html after processing.
-		console.log('Redirecting to index.html');
-		res.redirect('/'); // redirect DOES NOT work
-		//res.redirect('/other'); //this will send you to another page
-		//res.send("HI THERE") //this is a good initial debug
-	});
+	console.log('in post');
+	var currentSearchResult=req.body;
+		
+
+
+	
+	fs.readFile('data.json', function (err, data) {
+		var json = JSON.parse(data);
+		json.push(currentSearchResult);    
+		fs.writeFile("data.json", JSON.stringify(json), function(err){
+		  if (err) throw err;
+		  console.log('The "data to append" was appended to file!');
+		});
+	})
 
 });
 
 
-app.delete('/quotes', (req, res) => {
-  db.collection('quotes').findOneAndDelete({name: req.body.name}, (err, result) => {
-    if (err) return res.send(500, err)
-    res.send('A darth vadar quote got deleted')
-  })
+app.get('/quotes/:id', (req, res) => {
+	var result=[];
+	fs.readFile('data.json', (err, data) => {  
+		if (err) throw err;
+		let student = JSON.parse(data);
+		console.log(student);
+		for(var i=0;i<student.length;i++){
+			if(student[i].id==req.params.id){
+result.push(student[i]);
+			}
+		}
+		res.send(result);
+		
+	});
 })
 
 
-// NOTE: We don't listen here, we already did it in the MongoDB connect callback.
-// Start the server.
-//app.listen(port, function() {
-//  console.log('Express listening on port')
-//});
